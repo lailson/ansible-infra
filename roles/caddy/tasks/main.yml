@@ -49,6 +49,7 @@
 # passes every time. The check must read the inventory YAML raw, which puts it in
 # the consuming repo's CI, not in this role. Cost of getting it wrong:
 # defaults/main.yml, by the field.
+
 # The Cloudsmith apt source is REMOVED, not just unused: a source that answers
 # 402 fails every `apt update` on the box (os, docker, update.yml), so leaving
 # it behind from an older converge breaks roles that never touch Caddy.
@@ -86,7 +87,9 @@
     owner: root
     group: root
     mode: "0755"
+  register: caddy_release_dir
 
+# Check mode on a fresh host has neither the dir nor the file: both skip there.
 - name: Download the Caddy release package
   ansible.builtin.get_url:
     url: "https://github.com/caddyserver/caddy/releases/download/v{{ caddy_version }}/caddy_{{ caddy_version }}_linux_{{ caddy_dpkg_arch.stdout }}.deb"
@@ -94,6 +97,7 @@
     checksum: "sha512:{{ caddy_deb_sha512[caddy_dpkg_arch.stdout] }}"
     mode: "0644"
   register: caddy_deb
+  when: not (ansible_check_mode and caddy_release_dir is changed)
 
 # Same package the apt repo shipped (postinst creates the `caddy` user, starts +
 # enables the unit); the service task below guards against a hand-disable.
@@ -101,11 +105,10 @@
 #     next install of this .deb clobbers it. Upgrades are a caddy_version bump.
 #   * Standard modules only. A third-party plugin (DNS-challenge, WAF) means
 #     leaving the .deb for an xcaddy build.
-# Check mode on a fresh host cannot install a file it did not download.
 - name: Install caddy
   ansible.builtin.apt:
     deb: "{{ caddy_deb.dest }}"
-  when: not (ansible_check_mode and caddy_deb is changed)
+  when: not (ansible_check_mode and (caddy_deb is skipped or caddy_deb is changed))
 
 - name: Ensure certs dir
   ansible.builtin.file:

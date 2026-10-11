@@ -49,48 +49,67 @@
 # passes every time. The check must read the inventory YAML raw, which puts it in
 # the consuming repo's CI, not in this role. Cost of getting it wrong:
 # defaults/main.yml, by the field.
-- name: Caddy apt key
-  ansible.builtin.shell: |
-    set -o pipefail
-    curl -fsSL https://dl.cloudsmith.io/public/caddy/stable/gpg.key \
-      | gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
-  args:
-    creates: /usr/share/keyrings/caddy-stable-archive-keyring.gpg
-    executable: /bin/bash
 
-# Remove legacy .list from the old apt_repository module — deb822 writes
-# caddy.sources; a lingering caddy.list would be a duplicate-repo source.
-- name: Remove legacy Caddy apt .list
+# The Cloudsmith apt source is REMOVED, not just unused: a source that answers
+# 402 fails every `apt update` on the box (os, docker, update.yml), so leaving
+# it behind from an older converge breaks roles that never touch Caddy.
+- name: Remove the Cloudsmith Caddy apt source and its key
   ansible.builtin.file:
-    path: /etc/apt/sources.list.d/caddy.list
+    path: "{{ item }}"
     state: absent
+  loop:
+    - /etc/apt/sources.list.d/caddy.sources
+    - /etc/apt/sources.list.d/caddy.list
+    - /usr/share/keyrings/caddy-stable-archive-keyring.gpg
 
-- name: Caddy apt repo
-  ansible.builtin.deb822_repository:
-    name: caddy
-    types: deb
-    uris: https://dl.cloudsmith.io/public/caddy/stable/deb/debian
-    suites: any-version
-    components: main
-    signed_by: /usr/share/keyrings/caddy-stable-archive-keyring.gpg
-    state: present
+- name: Read the package architecture
+  ansible.builtin.command: dpkg --print-architecture
+  register: caddy_dpkg_arch
+  changed_when: false
+  check_mode: false
 
-# The distro package is what Caddy recommends for production
-# (https://caddyserver.com/docs/install).
-#   * Never run `caddy upgrade`: it self-replaces the binary in place and the
-#     next dist-upgrade clobbers it. Upgrades ride apt. unattended-upgrades
-#     allows only the Ubuntu security origins (see `os`), not Caddy's Cloudsmith
-#     — so the replaced binary survives until an operator next runs
-#     playbooks/update.yml, which is what makes the clobber a surprise.
+- name: Assert a release checksum exists for this architecture
+  ansible.builtin.assert:
+    that:
+      - caddy_dpkg_arch.stdout in caddy_deb_sha512
+    fail_msg: >-
+      caddy_deb_sha512 has no entry for {{ caddy_dpkg_arch.stdout }} — add the
+      sha512 of caddy_{{ caddy_version }}_linux_{{ caddy_dpkg_arch.stdout }}.deb
+      from the release's checksums.txt.
+    quiet: true
+
+# Not /var/cache/apt/archives: `apt clean` empties it, and every converge after
+# would re-download a package nothing changed.
+- name: Ensure the Caddy package cache dir
+  ansible.builtin.file:
+    path: /var/cache/caddy-release
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  register: caddy_release_dir
+
+# Check mode on a fresh host has neither the dir nor the file: both skip there.
+- name: Download the Caddy release package
+  ansible.builtin.get_url:
+    url: "https://github.com/caddyserver/caddy/releases/download/v{{ caddy_version }}/caddy_{{ caddy_version }}_linux_{{ caddy_dpkg_arch.stdout }}.deb"
+    dest: "/var/cache/caddy-release/caddy_{{ caddy_version }}_linux_{{ caddy_dpkg_arch.stdout }}.deb"
+    checksum: "sha512:{{ caddy_deb_sha512[caddy_dpkg_arch.stdout] }}"
+    mode: "0644"
+  register: caddy_deb
+  when: not (ansible_check_mode and caddy_release_dir is changed)
+
+# Same package the apt repo shipped (postinst creates the `caddy` user, starts +
+# enables the unit); the service task below guards against a hand-disable.
+#   * Never run `caddy upgrade`: it self-replaces the binary in place, and dpkg
+#     still records the old version, so this task sees nothing to do and the
+#     stray binary survives until the next caddy_version bump clobbers it.
 #   * Standard modules only. A third-party plugin (DNS-challenge, WAF) means
-#     leaving apt for an xcaddy build.
-# The package starts + enables the `caddy` unit; the service task below guards
-# against a hand-disable, it does not bring caddy up.
+#     leaving the .deb for an xcaddy build.
 - name: Install caddy
   ansible.builtin.apt:
-    name: caddy
-    state: present
-    update_cache: true
+    deb: "{{ caddy_deb.dest }}"
+  when: not (ansible_check_mode and (caddy_deb is skipped or caddy_deb is changed))
 
 - name: Ensure certs dir
   ansible.builtin.file:

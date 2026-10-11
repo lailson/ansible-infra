@@ -6,6 +6,28 @@ consumers pin the tag, so a change that is not released is a change nobody gets.
 A released tag is never repointed. 1.0.0 moved while the repo was private and nothing pinned it; going public ended
 that, and the next correction is 1.0.1.
 
+## 1.2.2
+
+### Changed
+
+- `caddy_version` is 2.11.7, the release current when the Cloudsmith repo went dark. 1.2.1 pinned 2.11.4, which was
+  behind 2.11.6 (2026-10-01) and 2.11.7 (2026-10-03): a host that had taken either through apt before 2026-10-09 would
+  have failed the install, because `apt deb:` refuses a downgrade — and `--check` hides that, since it skips the install
+  on a host without the cache dir. A converged host sees Caddy upgraded and restarted by the package's postinst.
+- ADR-0004 is amended: the install mechanism is the release `.deb`, upgrades are a `caddy_version` bump, and the
+  `caddy upgrade` warning says what actually happens (the stray binary survives until the next bump, it is not clobbered
+  by a re-run).
+
+## 1.2.1
+
+### Fixed
+
+- `caddy` installs from the GitHub release `.deb`, verified against the release's sha512 (`caddy_version`,
+  `caddy_deb_sha512`), instead of the Cloudsmith apt repo. Cloudsmith started answering 402 on 2026-10-09
+  (caddyserver/caddy#8184), which failed every `caddy` converge at `apt update` — and, because it was an apt source,
+  every other role's `apt update` on the same host. The role now removes that source and its key.
+- Patch rather than minor: the installed package is the same build, and a converged host sees no Caddy change.
+
 ## 1.2.0
 
 ### Changed

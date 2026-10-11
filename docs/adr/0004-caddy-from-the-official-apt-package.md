@@ -1,7 +1,16 @@
 # 4. Caddy, from the official apt package
 
-- **Status:** accepted
+- **Status:** accepted; **amended 2026-10-10** (1.2.1): the package comes from the GitHub release, not the apt repo
 - **Date:** 2026-07-13
+
+> **Amendment (1.2.1).** Caddy's Cloudsmith apt repo answers 402 since 2026-10-09
+> ([caddyserver/caddy#8184](https://github.com/caddyserver/caddy/issues/8184)), and as an apt _source_ it failed every
+> `apt update` on the host, not only Caddy's install. The role now installs the **same official `.deb` from the GitHub
+> release**, verified against the sha512 the release publishes (`caddy_version`, `caddy_deb_sha512`), and removes the
+> Cloudsmith source. Everything below about _why Caddy_ stands. What changes is the upgrade path: Caddy no longer rides
+> `apt upgrade`; an upgrade is a deliberate `caddy_version` bump, and the pin must stay at or above what the fleet runs
+> (`apt deb:` refuses a downgrade). The `caddy upgrade` warning changes too: a self-replaced binary is not clobbered by
+> the next converge — dpkg still records the old version, so the install is a no-op — it survives until the next bump.
 
 ## Context
 

@@ -101,8 +101,9 @@
 
 # Same package the apt repo shipped (postinst creates the `caddy` user, starts +
 # enables the unit); the service task below guards against a hand-disable.
-#   * Never run `caddy upgrade`: it self-replaces the binary in place, and the
-#     next install of this .deb clobbers it. Upgrades are a caddy_version bump.
+#   * Never run `caddy upgrade`: it self-replaces the binary in place, and dpkg
+#     still records the old version, so this task sees nothing to do and the
+#     stray binary survives until the next caddy_version bump clobbers it.
 #   * Standard modules only. A third-party plugin (DNS-challenge, WAF) means
 #     leaving the .deb for an xcaddy build.
 - name: Install caddy

@@ -49,7 +49,8 @@ none of it is visible in the tasks, so these four are worth writing down — ter
 - **Interface intent** — what a role or a var is _for_. `defaults/main.yml` is the role's public API, and here it is the
   API a team you will never talk to reads: what setting a var buys, not that it has a default.
 - **Quirks** — the guard, the workaround, the landmine. `when: not ansible_check_mode`, `creates:`, swap gated on
-  `/proc/swaps`, `caddy upgrade` clobbering the apt binary: each is a failure we hit. Name the failure, not the story.
+  `/proc/swaps`, `caddy upgrade` leaving a binary dpkg does not know about: each is a failure we hit. Name the failure,
+  not the story.
 - **Why, not how** — the alternative and why it lost: `deb822_repository` over `apt_repository`, `no_check_bucket` on
   the R2 remote, `sshd -G` over `sshd -t`.
 

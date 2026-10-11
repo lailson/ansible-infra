@@ -209,8 +209,10 @@ caddy_certs_dir: /etc/caddy/certs
 # 2026-10-09 (caddyserver/caddy#8184), and as an apt SOURCE it failed every
 # `apt update` on the host, not only Caddy's install.
 # Upgrading is a deliberate bump of both values; an arch missing from the map
-# fails the converge before anything is downloaded.
-caddy_version: "2.11.4"
+# fails the converge before anything is downloaded. Pin at or above what the
+# fleet runs: `apt deb:` refuses a downgrade, and `--check` skips the install
+# on a host without the cache dir, so the failure only shows on a real converge.
+caddy_version: "2.11.7"
 caddy_deb_sha512:
-  amd64: 1c6f5404f3622e46d401d81f4af59677d46b886229c6694d60fd936b87c72d3bb5d1fcf42b55c8d555769fa75acf434ab618fc7e0df2c79cf8512ee580d38d06
-  arm64: c43c62b7b583b31c682b3c3e1a31cf03759fbab01dcb0fc7d7fc3a5ce1bef43403583e26133920634a730a9fe31dae1386af4d3f9f3fc19fcc2c29ebf19de235
+  amd64: 47e8351c2317b427af14a103e763ca1118a3d2396a88b4c0669cdec9c4a68a957690194e2423a1633f53135741c33a41bdac2b55515b7d0f7adc8b733add50d9
+  arm64: ac32f03f0eea04021f2d4e5d89bfd01b84ead115f2eba9d2a0d06447e86d4af932899e56f090993a566d0925dbd1063002929b395541a8c5f5e51d7039f7375a

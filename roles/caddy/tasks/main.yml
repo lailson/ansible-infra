@@ -187,13 +187,21 @@
     label: "{{ item.host }}"
   changed_when: false
 
+# 0640: the file is deployable config a non-service user has no business
+# reading — and route auth material (basic_auth hashes) is valid Caddyfile
+# content a consumer's routes can carry, so world-read is a habit worth
+# never forming. caddy reads it through its group; validate and reload
+# run as root. A DECLARED EXCEPTION to ADR-0001's no_log rule: what a
+# route can carry here is a bcrypt hash, never a plaintext, and censoring
+# the task would censor the caddy validate stderr a broken render needs
+# to fail with.
 - name: Render Caddyfile
   ansible.builtin.template:
     src: Caddyfile.j2
     dest: /etc/caddy/Caddyfile
     owner: root
     group: caddy
-    mode: "0644"
+    mode: "0640"
     validate: "caddy validate --config %s --adapter caddyfile"
   notify: Reload caddy
 

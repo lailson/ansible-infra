@@ -6,6 +6,16 @@ consumers pin the tag, so a change that is not released is a change nobody gets.
 A released tag is never repointed. 1.0.0 moved while the repo was private and nothing pinned it; going public ended
 that, and the next correction is 1.0.1.
 
+## 1.2.3
+
+### Changed
+
+- The rendered `/etc/caddy/Caddyfile` lands `0640 root:caddy` instead of `0644`. Defense in depth: route auth material
+  (basic_auth hashes) is valid Caddyfile content a consumer's routes can carry, and the service reads the file through
+  its group anyway — `caddy validate` and the reload run as root. A declared exception to ADR-0001's `no_log` rule: what
+  a route can carry here is a bcrypt hash, never a plaintext, and censoring the task would censor the `caddy validate`
+  stderr a broken render needs to fail with.
+
 ## 1.2.2
 
 ### Changed
